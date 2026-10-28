@@ -1,75 +1,197 @@
-# Lerni backend
+# Emotion-Aware Study Assistant
 
-Express API for Lerni accounts, saved learning progress, and the AI Tutor.
+Lerni is a React and Express learning app. Camera-based expression estimates are optional and are not required to browse or complete Study lessons.
 
-## Local setup
+## Current Study Experience
 
-From the project root:
+The Study catalogue contains eight subjects. Lessons are currently available only where matching content exists in `src/data/lessonContent.js`; subjects without lessons remain unavailable instead of opening placeholder content.
 
-```powershell
-cd backend
+- Catalogue: `/study`
+- Subject overview: `/study/:subjectSlug`
+- Dedicated lesson: `/study/:subjectSlug/lessons/:lessonSlug`
+
+Lesson URLs use stable slugs and load content independently of navigation state, so direct links and browser refreshes retain the selected lesson. The reader includes lesson objectives, sections, previous/next navigation, and an explicit completion action.
+
+The original `/lesson`, `/quiz`, `/simplified`, and `/break` routes remain as legacy experiences. Study catalogue lesson links do not route through those pages.
+
+Account profiles, lesson completions, quiz results, and dashboard progress are stored per user. Local development uses SQLite; production requires PostgreSQL and a `DATABASE_URL`.
+
+## Legacy Lesson Experience
+
+### 1. Login Page (`/`)
+- Users can sign in or create an account at `/signup`
+- Protected pages validate the current session with the backend before loading
+
+### 2. Start Study Page (`/start-study`)
+- Dashboard with learning progress and navigation
+
+### 3. Subject Selection (`/subject-selection`)
+- Legacy subject-selection route
+
+### 4. Topic Selection (`/topic-selection`)
+- Legacy topic-selection route
+
+### 5. Lesson Page (`/lesson`) - Main Learning Interface
+The legacy learning experience includes:
+- **Lesson content** divided into sections (Introduction, Operations, Examples)
+- **Progress tracking** (Section X of Y, percentage complete)
+- **Reading material** with clear explanations
+- **Emotion detection panel** (right side) showing:
+  - Current emotion (Focused, Happy, Confused, Bored, Sleepy)
+  - Confidence percentage
+  - Emotion breakdown bars
+  - XP tracking
+- **Navigation buttons** (Previous/Next)
+- **Three adaptive action buttons:**
+  - Show Quiz (when bored or want to test knowledge)
+  - Simplify Topic (when confused)
+  - Take Break (when sleepy or tired)
+- **When all sections complete:** Click "Complete Lesson" → Goes to Quiz
+
+### 6. Quiz Page (`/quiz`)
+- Interactive quiz with 5 questions about the topic
+- Multiple choice answers
+- Progress bar
+- Score calculation with percentage
+- XP rewards based on performance
+- Result screen with:
+  - Score and correct answers
+  - Performance feedback
+  - Options: Retry Quiz or View Analytics
+
+### 7. Simplified Content (`/simplified`)
+Accessed when user is confused or clicks "Simplify Topic":
+- Easy-to-understand explanations
+- Real-life analogies (e.g., stack of plates)
+- Visual examples and diagrams
+- Step-by-step breakdown
+- Key points summary
+- Options: Take Quiz or Continue Learning
+
+### 8. Break Screen (`/break`)
+Accessed when user is sleepy or clicks "Take Break":
+- 2-minute countdown timer with circular progress
+- Break tips (drink water, stretch, rest eyes, walk around)
+- Options: Extend break (+1 minute) or Skip break
+- Auto-completes when timer ends
+- Returns to Lesson page
+
+### 9. Analytics Dashboard (`/analytics`)
+Opens after completing quiz:
+- **Session statistics:** Study time, focus score, XP earned, topics completed
+- **Emotion breakdown chart:** Shows time spent in each emotion
+- **Quiz performance:** Circular score display with feedback
+- **Achievements/badges:** Earned and locked badges
+- **Personalized recommendations:** Based on performance
+- **Options:** 
+  - Start New Session (goes to Subject Selection)
+  - Continue to Next Topic (goes to Topic Selection)
+
+## Adaptive Learning Logic
+
+The system adapts based on detected emotions:
+
+- **Focused** 😊 → Continue normal lesson, everything flows smoothly
+- **Confused** 😕 → "Simplify Topic" button highlighted → Shows easier explanation
+- **Bored** 😑 → "Show Quiz" button highlighted → Interactive quiz to engage
+- **Sleepy** 😴 → "Take Break" button highlighted → Suggests rest period
+- **Happy** 😄 → Continue with positive reinforcement
+
+## Complete User Journey
+
+```
+Login 
+  ↓
+Start Study (Welcome)
+  ↓
+Subject Selection (Choose subject)
+  ↓
+Topic Selection (Choose topic)
+  ↓
+Lesson Page (Read & Learn with emotion detection)
+  ├→ Confused? → Simplified Content → Back to Lesson
+  ├→ Bored? → Quiz → Analytics
+  ├→ Sleepy? → Break Screen → Back to Lesson
+  └→ Complete Lesson → Quiz → Analytics
+       ↓
+Analytics (View performance)
+  ├→ Start New Session → Subject Selection
+  └→ Next Topic → Topic Selection
+```
+
+## Setup
+
+### Frontend Setup
+
+1. Install dependencies:
+```bash
 npm install
-Copy-Item .env.example .env
 ```
 
-Set `JWT_SECRET` in `backend/.env` to a private random value of at least 32 characters. This PowerShell command replaces the example value (or adds the setting if missing) without printing the secret:
-
-```powershell
-node -e "const fs=require('fs');const p='.env';const s=fs.readFileSync(p,'utf8');const line='JWT_SECRET='+require('crypto').randomBytes(48).toString('hex');fs.writeFileSync(p,/^JWT_SECRET=.*$/m.test(s)?s.replace(/^JWT_SECRET=.*$/m,line):s.trimEnd()+'\n'+line+'\n')"
-```
-
-Add `GEMINI_API_KEY` to use AI Tutor; keep provider keys on the backend only.
-
-Start the API:
-
-```powershell
+2. Start the development server:
+```bash
 npm start
 ```
 
-Local development uses SQLite at `backend/data/lerni.sqlite`. The database and its write-ahead log are ignored by Git. SQLite tables are created and upgraded when the API starts. The local demo account is seeded only for non-production SQLite development:
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-```text
+### Backend Setup
+
+1. Navigate to backend folder:
+```bash
+cd backend
+```
+
+2. Install backend dependencies:
+```bash
+npm install
+```
+
+3. Copy `backend/.env.example` to `backend/.env`, set a private `JWT_SECRET` (at least 32 random characters), and optionally add `GEMINI_API_KEY` for AI Tutor.
+
+4. Start the backend server:
+```bash
+npm start
+```
+
+The backend will run on `http://localhost:5000`
+
+Local SQLite data is stored in the ignored `backend/data/` folder. Production requires PostgreSQL through `DATABASE_URL`; configure `FRONTEND_URL` (or `CORS_ORIGINS`) and the database in the backend host. See [backend setup](./backend/README.md) for local secrets and Render environment configuration. Keep `backend/.env` private and never put the AI provider key in frontend code. AI Tutor conversation history is currently held in backend memory and cleared when the backend restarts.
+
+### Local Demo Login Credentials
+
+The demo account is seeded only for non-production SQLite development:
+```
 Email: emma@example.com
 Password: password123
 ```
 
-Do not deploy the demo account or use its password in production.
+## Tech Stack
 
-## Production configuration
+- **Frontend:** React 18, React Router 6
+- **Styling:** CSS (custom)
+- **Backend:** Node.js, Express, bcryptjs, JWT, SQLite/PostgreSQL
+- **AI/ML:** Optional emotion detection and server-side Gemini AI Tutor integration
+- **Database:** SQLite locally; PostgreSQL in production
 
-Configure these environment variables in the backend host:
+## Features
 
-- `NODE_ENV=production`
-- `DATABASE_URL` — PostgreSQL connection URL. Startup fails if it is missing; production never silently falls back to SQLite.
-- `JWT_SECRET` — private random value with at least 32 characters.
-- `FRONTEND_URL` — deployed frontend origin, such as `https://lerni.example.com`. For multiple browser origins, set `CORS_ORIGINS` to a comma-separated list instead.
-- `GEMINI_API_KEY` — optional; required only for AI Tutor replies.
-- `PORT` — usually supplied by the hosting platform.
-- `DATABASE_SSL=false` only when the PostgreSQL provider explicitly requires SSL to be disabled. SSL is enabled by default in production.
+✅ User authentication and protected Study routes
+✅ Eight-subject Study catalogue with actual available lesson counts
+✅ Dedicated, refresh-safe routes for available Study lessons
+✅ Database-backed per-user lesson, quiz, and analytics data
+✅ Optional camera activation in the legacy lesson experience
 
-The backend supports PostgreSQL databases where `users.id` is `UUID`, `TEXT`, or `BIGINT`; newly created account-related tables use the existing ID type for their foreign keys. For `BIGINT` IDs, PostgreSQL generates each new user ID using the column's configured identity or sequence.
+## Remaining Platform Work
 
-For a Render deployment, create a PostgreSQL database, set its internal connection URL as `DATABASE_URL`, then add the other variables to the backend web service. If frontend and API are deployed separately, set the frontend build variable `REACT_APP_API_URL` to the backend origin only (no `/api` suffix), and set the backend `FRONTEND_URL` to the frontend origin. The frontend variable must be available when building the React app.
+1. Author and validate lessons for subjects that currently have no available content.
+2. Integrate lesson-specific quizzes into the new Study reader.
 
-## API
+## Goal
 
-All authenticated endpoints use `Authorization: Bearer <token>`. Access tokens expire after eight hours. `/api/auth/logout` revokes the account's current token version; a later sign-in creates a fresh token.
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `POST` | `/api/auth/signup` | Create an account |
-| `POST` | `/api/auth/login` | Sign in |
-| `GET` | `/api/auth/me` | Validate the token and return the current profile |
-| `POST` | `/api/auth/logout` | Revoke the current account token version |
-| `GET` | `/api/progress` | Get the signed-in user's saved dashboard and analytics data |
-| `POST` | `/api/progress/quiz` | Save a quiz result |
-| `POST` | `/api/progress/lesson` | Save a lesson completion |
-| `GET` | `/api/tutor/health` | Check AI Tutor configuration |
-| `POST` | `/api/tutor/chat` | Stream an AI Tutor response |
-| `GET` | `/api/tutor/conversations` | List the signed-in user's recent tutor chats |
-| `DELETE` | `/api/tutor/conversations/:id` | Delete a tutor chat |
-| `GET` | `/api/health` | Check API status and database type |
-
-`/api/register`, `/api/login`, and `/api/user` remain as compatibility routes. Signup validates and normalizes email, hashes passwords with bcrypt, and rejects duplicate accounts. Progress rows are always scoped to the authenticated token, never a browser-supplied user ID. Quiz XP is calculated by the server.
-
-User profiles, progress totals, lesson completions, quiz results, and explicitly submitted emotion estimates are stored in the configured database. Tutor conversations remain in backend memory and are cleared when the backend restarts.
+Provide stress-free learning by:
+- Detecting when students struggle
+- Automatically simplifying content
+- Making learning fun with quizzes
+- Preventing burnout with breaks
+- Tracking progress and motivation
